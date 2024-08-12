@@ -13,3 +13,9 @@ then go to startup, additional node packages and put this in there "discord.js d
 if you have any problems dm me at deadlyspace_ 
 thanks for using this tutorial! star this page please :).
 (node.js v19 and discord v14)
+
+# BOT FUNCTIONS
+!talk to initate a conversation and to exit type !exittalk
+!ask to ask a question it remembers and wipes the last message after 8948 messages.
+dyanamically logs into logs.json or makes a array if logging isnt possible.
+!reboot to wipe all its memories. (it may list some memories to be wiped as it will just restart the conversation and reset the context.)
