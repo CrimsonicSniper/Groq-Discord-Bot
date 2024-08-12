@@ -1,6 +1,6 @@
 require('dotenv').config();  // Load environment variables from .env file
 
-const { Client, GatewayIntentBits, MessageActionRow, ButtonBuilder, ButtonStyle, SelectMenuBuilder, TextInputBuilder, TextInputStyle, ChannelType, Events, ActionRowBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, MessageActionRow, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
@@ -48,22 +48,43 @@ function rememberMessage(serverId, role, content) {
     }
 }
 
+client.once('ready', () => {
+
+  console.log('Bot is online!');
+
+});
+
 // Function to store key information in logs.json
-function storeKeyInformation(serverId, keyInfo) {
-    if (!logs[serverId]) {
-        logs[serverId] = [];
+async function storeKeyInformation(serverId, content) {
+    try {
+        const response = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: `Is the following information key? ${content}` }],
+            model: 'llama3-8b-8192',
+        });
+
+        const isKey = response.choices[0]?.message?.content.toLowerCase().includes('yes');
+        
+        if (isKey) {
+            if (!logs[serverId]) {
+                logs[serverId] = [];
+            }
+            logs[serverId].push({ timestamp: new Date().toISOString(), keyInfo: content });
+
+            // Write logs to logs.json
+            fs.writeFileSync(logsFilePath, JSON.stringify(logs, null, 2), 'utf8');
+
+            // Check if log file size exceeds the limit
+            const stats = fs.statSync(logsFilePath);
+            return stats.size > maxLogSize;
+        }
+        return false;
+    } catch (error) {
+        console.error("Groq API Error:", error);
+        return false;
     }
-    logs[serverId].push(keyInfo);
-
-    // Write logs to logs.json
-    fs.writeFileSync(logsFilePath, JSON.stringify(logs, null, 2), 'utf8');
-
-    // Check if log file size exceeds the limit
-    const stats = fs.statSync(logsFilePath);
-    return stats.size > maxLogSize;
 }
 
-// Function to get Groq chat completion
+// Function to get chat completion from Groq API with context preservation
 async function getGroqChatCompletion(context) {
     try {
         const response = await groq.chat.completions.create({
@@ -77,28 +98,21 @@ async function getGroqChatCompletion(context) {
     }
 }
 
-// Function to send long messages in chunks
-async function sendMessageInChunks(channel, message, chunkSize = 2000) {
-    for (let i = 0; i < message.length; i += chunkSize) {
-        const chunk = message.substring(i, i + chunkSize);
-        await channel.send(chunk);
-    }
-}
-
 // Command to reboot the bot
 client.on('messageCreate', async message => {
-    if (message.author.bot) return;
-
-    const serverId = message.guild.id;
-
     if (message.content === '!reboot') {
+        const serverId = message.guild.id;
         const serverLogs = logs[serverId] || [];
 
         let keyInfoMessage = "Key information before reboot:\n";
         if (serverLogs.length === 0) {
             keyInfoMessage += "No key information stored.";
         } else {
-            keyInfoMessage += serverLogs.map(log => `${log.timestamp}: ${log.keyInfo}`).join('\n');
+            keyInfoMessage += serverLogs.map(log => {
+                const timestamp = log.timestamp || "No timestamp";
+                const keyInfo = log.keyInfo || "No key information";
+                return `${timestamp}: ${keyInfo}`;
+            }).join('\n');
         }
 
         const confirmButton = new ButtonBuilder()
@@ -161,7 +175,7 @@ client.on('messageCreate', async message => {
         rememberMessage(message.guild.id, 'user', message.content);
         rememberMessage(message.guild.id, 'assistant', response);
 
-        const needsNotification = storeKeyInformation(message.guild.id, `Bot name set to ${name}.`);
+        const needsNotification = await storeKeyInformation(message.guild.id, `Bot name set to ${name}.`);
 
         if (needsNotification) {
             await message.channel.send("Key information stored. Please note that the log file size limit has been exceeded.");
@@ -194,22 +208,6 @@ client.on('messageCreate', async message => {
 
         return;
     }
-
-    // Handle !ask command
-    if (message.content.startsWith('!ask')) {
-        const userQuery = message.content.slice(5); // Extract user query after "!ask "
-        const response = await getGroqChatCompletion([{ role: 'user', content: userQuery }]);
-
-        // Send the response in chunks if it's too long
-        await sendMessageInChunks(message.channel, response);
-
-        return;
-    }
-});
-
-// Log when the bot is online
-client.once('ready', () => {
-    console.log('Bot is online!');
 });
 
 // Log in to Discord with the bot token
