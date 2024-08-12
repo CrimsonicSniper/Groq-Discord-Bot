@@ -48,21 +48,21 @@ function rememberMessage(serverId, role, content) {
     }
 }
 
-client.once('ready', () => {
+// Function to determine if content is key information
+function isKeyInformation(content) {
+    // Define keywords or phrases that are indicative of key information
+    const keyPhrases = [
+        "name", "introduce", "about", "who am i", "my name", "i am", "character", "identity"
+    ];
 
-  console.log('Bot is online!');
-
-});
+    // Check if content contains any of the key phrases
+    return keyPhrases.some(phrase => content.toLowerCase().includes(phrase));
+}
 
 // Function to store key information in logs.json
 async function storeKeyInformation(serverId, content) {
     try {
-        const response = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: `Is the following information key? ${content}` }],
-            model: 'llama3-8b-8192',
-        });
-
-        const isKey = response.choices[0]?.message?.content.toLowerCase().includes('yes');
+        const isKey = isKeyInformation(content);
         
         if (isKey) {
             if (!logs[serverId]) {
@@ -102,17 +102,17 @@ async function getGroqChatCompletion(context) {
 client.on('messageCreate', async message => {
     if (message.content === '!reboot') {
         const serverId = message.guild.id;
-        const serverLogs = logs[serverId] || [];
 
+        // Collect and display key information for the server
         let keyInfoMessage = "Key information before reboot:\n";
-        if (serverLogs.length === 0) {
-            keyInfoMessage += "No key information stored.";
-        } else {
-            keyInfoMessage += serverLogs.map(log => {
+        if (logs[serverId] && logs[serverId].length > 0) {
+            keyInfoMessage += logs[serverId].map(log => {
                 const timestamp = log.timestamp || "No timestamp";
                 const keyInfo = log.keyInfo || "No key information";
                 return `${timestamp}: ${keyInfo}`;
             }).join('\n');
+        } else {
+            keyInfoMessage += "No key information stored.";
         }
 
         const confirmButton = new ButtonBuilder()
@@ -142,10 +142,12 @@ client.on('messageCreate', async message => {
                     components: []
                 });
 
-                serverMessages[serverId] = []; // Clear memory for the server
+                // Clear memory for the server
+                serverMessages[serverId] = [];
 
-                const updatedLogs = logs.filter(log => log.serverId !== serverId);
-                fs.writeFileSync(logsFilePath, JSON.stringify(updatedLogs, null, 2));
+                // Clear key information from logs
+                delete logs[serverId];
+                fs.writeFileSync(logsFilePath, JSON.stringify(logs, null, 2));
 
                 await interaction.followUp({
                     content: "Bot has been rebooted and memory has been cleared.",
@@ -206,6 +208,24 @@ client.on('messageCreate', async message => {
             }
         });
 
+        return;
+    }
+
+    // Example command to get response from Groq
+    if (message.content.startsWith('!ask')) {
+        const userQuery = message.content.slice(5); // Extract user query after "!ask "
+
+        rememberMessage(message.guild.id, 'user', userQuery);
+        const response = await getGroqChatCompletion([{ role: 'user', content: userQuery }]);
+
+        rememberMessage(message.guild.id, 'assistant', response);
+        const needsNotification = await storeKeyInformation(message.guild.id, userQuery);
+
+        if (needsNotification) {
+            await message.channel.send("Key information stored. Please note that the log file size limit has been exceeded.");
+        } else {
+            await message.channel.send(response);
+        }
         return;
     }
 });
