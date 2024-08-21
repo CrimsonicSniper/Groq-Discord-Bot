@@ -1,5 +1,5 @@
 # Groq-Discord-Bot
-# DONT USE THE .ZIP FILE, ITS WIP.
+# PUT .ENV IN ROOT DIRECTORY.
 # DISCORD V14 AND NODE.JS V19 
 This is a solid guide for people who want to make a discord-bot with no effort. I will post a tutorial on youtube soon!
 
