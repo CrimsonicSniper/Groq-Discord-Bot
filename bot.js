@@ -644,11 +644,18 @@ client.on('interactionCreate', async interaction => {
             });
             break;
 
-        case 'ask':
-            const query = interaction.options.getString('query');
-            const answer = await getGroqChatCompletion([{ role: 'user', content: query }]);
-            await interaction.reply(answer);
-            break;
+      
+case 'ask':
+    const query = interaction.options.getString('query');
+    const answer = await getGroqChatCompletion([{ role: 'user', content: query }]);
+    const processedChunks = splitMessage(answer);
+
+    await interaction.reply(processedChunks[0]);
+    for (let i = 1; i < processedChunks.length; i++) {
+        await interaction.channel.send(processedChunks[i]);
+    }
+    break;
+
 
         default:
             await interaction.reply({ content: 'Unknown command.', ephemeral: true });
