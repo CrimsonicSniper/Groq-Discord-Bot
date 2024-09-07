@@ -541,15 +541,20 @@ client.on('interactionCreate', async interaction => {
             }
 
             break;
+case 'read':
+    const count = interaction.options.getInteger('count');
+    const channel = interaction.channel;
+    const messages = await channel.messages.fetch({ limit: count });
+    const messageContents = messages.map(msg => msg.content).join('\n');
+    const summary = await getGroqChatCompletion([{ role: 'user', content: messageContents }]);
+    const splitsummary = splitMessage(summary);
 
-        case 'read':
-            const count = interaction.options.getInteger('count');
-            const channel = interaction.channel;
-            const messages = await channel.messages.fetch({ limit: count });
-            const messageContents = messages.map(msg => msg.content).join('\n');
-            const summary = await getGroqChatCompletion([{ role: 'user', content: messageContents }]);
-            await interaction.reply(summary);
-            break;
+    await interaction.reply(splitsummary[0]);
+
+    for (let i = 1; i < splitsummary.length; i++) {
+        await interaction.channel.send(splitsummary[i]);
+    }
+    break;
 
         case 'reboot':
             const rebootKeyInfoMessage = "Key information before reboot:\n";
