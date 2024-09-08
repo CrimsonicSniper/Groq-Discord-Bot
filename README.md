@@ -13,6 +13,7 @@ then go to https://client.pylexnodes.net/account and change your password.
 after changing your password go to https://free.pylexnodes.net
 select your server, go to files and upload the files to the server. 
 then go to startup, additional node packages and put this in there "discord.js dotenv groq-sdk chalk express express-session body-parser @discordjs/rest" without the "". after putting that start it.
+CHECK THE .ENV FILE AND FILL OUT ALL THE REQUIRED FIELDS.
 if you have any problems dm me at deadlyspace_ and catalyst.pq
 # thanks for using this tutorial! star this page please :).
 
