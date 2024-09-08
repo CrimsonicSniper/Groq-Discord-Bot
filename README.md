@@ -18,8 +18,4 @@ if you have any problems dm me at deadlyspace_ and catalyst.pq
 
 
 # BOT FUNCTIONS
-!talk to initate a conversation and to exit type !exittalk
-!ask to ask a question it remembers and wipes the last message after 8948 messages.
-dyanamically logs into logs.json or makes a array if logging isnt possible.
-!reboot to wipe all its memories. (it may list some memories to be wiped as it will just restart the conversation and reset the context.)
-
+Press / in a guild channel to view the commands.
