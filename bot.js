@@ -235,110 +235,133 @@ client.on('messageCreate', async message => {
 client.login(TOKEN);
 */
 
-// Required imports and initial setup
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, Collection, MessageActionRow, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+// Huge thanks to @catalyst.pq on discord for helping out in many commands
+// made by deadlyspace_ and catalyst.pq
+
+// <=====[ Imports ]=====>
+const { Client, GatewayIntentBits, ChannelType, REST, Routes, SlashCommandBuilder, Collection, MessageActionRow, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+
 const Groq = require('groq-sdk');
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-require('dotenv').config(); // To use environment variables from a .env file
+const https = require('https');
+require('dotenv').config();
 
-// Initialize Express app
+// <=====[ Webpage Handling ]=====>
+
+// HTML files:
+//   - Files like 'index.html' and 'dashboard.html', inside the 'public/dist' directory.
+//     Example: 'public/dist/index.html' and 'public/dist/dashboard.html'.
+
+// CSS files:
+//   - Inside the 'public/dist' directory for production-ready styles.
+//   - (Can also use 'public/src' if you are managing source styles separately.)
+//     Example: 'public/dist/styles.css' or 'public/src/styles.css'.
+
 const app = express();
 const PORT = process.env.PORT || 9442;
 
-// Middleware for Express
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('dist')); // Serve static files from the 'dist' directory
+app.use(express.static('dist'));
 
 // Express routes for login and dashboard
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
+  const { username, password } = req.body;
 
-    // Validate credentials
-    if (username === process.env.USERNAME && password === process.env.PASSWORD) {
-        res.redirect('/dashboard'); // Successful login
-    } else {
-        res.status(401).send('Invalid credentials'); // Unauthorized response (Does not work.)
-    }
+  if (username === process.env.USERNAME && password === process.env.PASSWORD) {
+    res.redirect('/dashboard');
+  } else {
+    res.status(401).send('Invalid credentials');
+  }
 });
 
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/dist/index.html')); //PUT YOUR HTML FILE HERE.
+  res.sendFile(path.join(__dirname, 'public/dist/index.html'));
 });
 
 app.use('/css', express.static(path.join(__dirname, 'public', 'dist')));
- // ADD YOUR CSS FILES TO /CSS AND WHEN YOU WANT TO IMPORT STYLESHEET USE /CSS INSTEAD OF THE PATH
 app.use('/css', express.static(path.join(__dirname, 'public', 'src')));
 
 app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/dist/dashboard.html'));
+  res.sendFile(path.join(__dirname, 'public/dist/dashboard.html'));
 });
 
-// Start the Express server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http:/deka.pylex.xyz:${PORT}. Available URL's are /login.`);
 });
 
-// Initialize Groq with API key from environment variables
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// <=====>
 
-// Discord bot token
+// <=====[ Initialising Environments ]=====>
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 
-// Initialize Discord client with intents
 const client = new Client({
-    intents: [
+  intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
     ],
 });
 
-// Initialize commands collection
-client.commands = new Collection();
-
-// Define slash commands
 const commands = [
-    new SlashCommandBuilder()
-        .setName('talk')
-        .setDescription('Enter talking mode.'),
-    new SlashCommandBuilder()
-        .setName('exit')
-        .setDescription('Exit talking mode.'),
-    new SlashCommandBuilder()
-        .setName('read')
-        .setDescription('Read and summarize messages from a channel.')
-        .addIntegerOption(option =>
-            option.setName('count')
-                .setDescription('Number of messages to read.')
-                .setRequired(true)
-        ),
-    new SlashCommandBuilder()
-        .setName('reboot')
-        .setDescription('Reboot the bot and clear memory.'),
-    new SlashCommandBuilder()
-        .setName('blacklist')
-        .setDescription('Blacklist a user.')
-        .addUserOption(option =>
-            option.setName('target')
-                .setDescription('User to blacklist.')
-                .setRequired(true)
-        ),
-    new SlashCommandBuilder()
-        .setName('ask')
-        .setDescription('Ask a question to the bot.')
-        .addStringOption(option =>
-            option.setName('query')
-                .setDescription('Your question.')
-                .setRequired(true)
-        )
+  new SlashCommandBuilder()
+    .setName('talk')
+    .setDescription('Enter talking mode.'),
+  new SlashCommandBuilder()
+    .setName('exit')
+    .setDescription('Exit talking mode.'),
+  new SlashCommandBuilder()
+    .setName('read')
+    .setDescription('Read and summarize messages from a channel.')
+    .addIntegerOption(option =>
+      option.setName('count')
+        .setDescription('Number of messages to read.')
+        .setRequired(true)
+        .setMinValue(1) // MIN
+        .setMaxValue(100) // MAX
+    ),
+  new SlashCommandBuilder()
+    .setName('reboot')
+    .setDescription('Reboot the bot and clear memory.'),
+  new SlashCommandBuilder()
+    .setName('blacklist')
+    .setDescription('Blacklist a user.')
+    .addUserOption(option =>
+      option.setName('target')
+        .setDescription('User to blacklist.')
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('Setup the channel ID for clock-in and clock-out logs.')
+    .addStringOption(option =>
+        option.setName('channel_id')
+            .setDescription('The ID of the channel where clock-in and clock-out logs will be posted.')
+            .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('ask')
+    .setDescription('Ask a question to the bot.')
+    .addStringOption(option =>
+      option.setName('query')
+        .setDescription('Your question.')
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('clockin')
+    .setDescription('Clock in to record your time.'),
+  new SlashCommandBuilder()
+    .setName('clockout')
+    .setDescription('Clock out to record your time.')
 ].map(command => command.toJSON());
 
-// Register slash commands
-const rest = new REST({ version: '10' }).setToken(TOKEN);
 
+// Register commands (/)
+const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
     try {
         console.log('Started refreshing application (/) commands.');
@@ -356,30 +379,97 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 // Max messages and log size settings
 const maxMessages = 30; // Number of messages to remember per server
-const maxLogSize = 256 * 1024 * 1024; // 256 MB
+const maxLogSize = 25 * 1024 * 1024; // 25 MB
+const webhookUrl = "UR_WEBHOOK_URL" || process.env.WEBHOOK_URL
+
 const serverMessages = {};
-const logsFilePath = path.join(__dirname, 'logs.json');
+
+// Load setup.json if it exists
+let setup = {};
+const setupFilePath = path.join(__dirname, 'Setup.json');
+const clockLogsFilePath = path.join(__dirname, 'Clock-Logs.json');
+if (fs.existsSync(setupFilePath)) {
+  setup = JSON.parse(fs.readFileSync(setupFilePath, 'utf8'));
+}
 
 // Load logs.json if it exists
 let logs = {};
+const logsFilePath = path.join(__dirname, 'logs.json');
 if (fs.existsSync(logsFilePath)) {
-    logs = JSON.parse(fs.readFileSync(logsFilePath, 'utf8'));
+  logs = JSON.parse(fs.readFileSync(logsFilePath, 'utf8'));
 }
+
 
 // Helper functions for message handling and log management
 function rememberMessage(serverId, role, content) {
-    if (!serverMessages[serverId]) {
-        serverMessages[serverId] = [];
-    }
-    serverMessages[serverId].push({ role, content });
+  if (!serverMessages[serverId]) {
+    serverMessages[serverId] = [];
+  }
+  serverMessages[serverId].push({ role, content });
 
-    if (serverMessages[serverId].length > maxMessages) {
-        serverMessages[serverId].shift(); // Remove the oldest message
-    }
+  if (serverMessages[serverId].length > maxMessages) {
+    serverMessages[serverId].shift(); // Remove the oldest message
+  }
 }
 
+// <=====[ Webhook Logging ]=====>
+
+const messageQueue = [];
+let isRateLimited = false;
+
+async function sendToWebhook(content) {
+  messageQueue.push(content);
+}
+
+function postToWebhook(content) {
+  const data = JSON.stringify({ content });
+  const url = new URL(webhookUrl);
+
+  const options = {
+    hostname: url.hostname,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    if (res.statusCode === 429) {
+      isRateLimited = true;
+      const retryAfter = parseInt(res.headers['retry-after'], 10) * 1000 || 1000;
+
+      console.error('Rate limited. Retrying after', retryAfter, 'ms');
+      setTimeout(() => { isRateLimited = false; }, retryAfter);
+    } else if (res.statusCode < 200 || res.statusCode >= 300) {
+      console.error('Failed to send message:', res.statusCode);
+    }
+  });
+
+  req.on('error', console.error);
+  req.write(data);
+  req.end();
+}
+
+setInterval(() => {
+  if (messageQueue.length && !isRateLimited) {
+    postToWebhook(messageQueue.shift());
+  }
+}, 1000);
+
+// Override console.log to send messages to the webhook
+console.log = (...args) => {
+  const message = args.join(' ');
+  sendToWebhook(message);
+  process.stdout.write(message + '\n');
+};
+
+// <=====>
+
+
 function isKeyInformation(content) {
-    const keyPhrases = [
+  const keyPhrases = [
     "date", "time", "location", "name", "age", "address", "email", "phone number",
     "appointment", "event", "meeting", "deadline", "birthday", "anniversary",
     "reminder", "schedule", "username", "password", "website", "company name",
@@ -422,69 +512,64 @@ function isKeyInformation(content) {
     "analysis", "survey", "questionnaire", "interview", "observation", "data",
     "statistics", "results", "findings", "conclusion", "recommendation", "solution"
     ];
-    return keyPhrases.some(phrase => content.toLowerCase().includes(phrase));
+  return keyPhrases.some(phrase => content.toLowerCase().includes(phrase));
 }
 
 async function storeKeyInformation(serverId, content) {
-    try {
-        const isKey = isKeyInformation(content);
+  try {
+    const isKey = isKeyInformation(content);
 
-        if (isKey) {
-            if (!logs[serverId]) {
-                logs[serverId] = [];
-            }
-            logs[serverId].push({ timestamp: new Date().toISOString(), keyInfo: content });
+    if (isKey) {
+      if (!logs[serverId]) {
+        logs[serverId] = [];
+      }
+      logs[serverId].push({ timestamp: new Date().toISOString(), keyInfo: content });
 
-            fs.writeFileSync(logsFilePath, JSON.stringify(logs, null, 2), 'utf8');
+      fs.writeFileSync(logsFilePath, JSON.stringify(logs, null, 2), 'utf8');
 
-            const stats = fs.statSync(logsFilePath);
-            return stats.size > maxLogSize;
-        }
-        return false;
-    } catch (error) {
-        console.error("Error storing key information:", error);
-        return false;
+      const stats = fs.statSync(logsFilePath);
+      return stats.size > maxLogSize;
     }
+    return false;
+  } catch (error) {
+    console.error("Error storing key information:", error);
+    return false;
+  }
 }
 
 async function getGroqChatCompletion(context) {
-    try {
-        // Filter out messages where content is null or undefined
-        const filteredContext = context.filter(message => message.content && message.content.trim() !== '');
+  try {
+    const filteredContext = context.filter(message => message.content && message.content.trim() !== '');
 
-        if (filteredContext.length === 0) {
-            throw new Error("Context is empty or all messages are invalid.");
-        }
+    const response = await groq.chat.completions.create({
+      messages: filteredContext,
+      model: 'llama3-8b-8192',
+    });
 
-        const response = await groq.chat.completions.create({
-            messages: filteredContext,
-            model: 'llama3-8b-8192',
-        });
-
-        return response.choices[0]?.message?.content || "I couldn't generate a response.";
-    } catch (error) {
-        console.error("Groq API Error:", error);
-        return "Sorry, I couldn't process your request.";
-    }
+    return response.choices[0]?.message?.content || "I couldn't generate a response.";
+  } catch (error) {
+    console.error("Groq API Error:", error);
+    return "Sorry, I couldn't process your request.";
+  }
 }
 
 function splitMessage(message, limit = 2000) {
-    if (message.length <= limit) return [message];
+  if (message.length <= limit) return [message];
 
-    const parts = [];
-    let index = 0;
-    while (index < message.length) {
-        let nextPart = message.slice(index, index + limit);
-        const lastSpace = nextPart.lastIndexOf(' ');
-        if (lastSpace > 0 && index + limit < message.length) {
-            nextPart = message.slice(index, index + lastSpace);
-            index += lastSpace + 1;
-        } else {
-            index += limit;
-        }
-        parts.push(nextPart);
+  const parts = [];
+  let index = 0;
+  while (index < message.length) {
+    let nextPart = message.slice(index, index + limit);
+    const lastSpace = nextPart.lastIndexOf(' ');
+    if (lastSpace > 0 && index + limit < message.length) {
+      nextPart = message.slice(index, index + lastSpace);
+      index += lastSpace + 1;
+    } else {
+      index += limit;
     }
-    return parts;
+    parts.push(nextPart);
+  }
+  return parts;
 }
 
 // Declare the collector variable at a scope level accessible to all relevant parts of the code
@@ -492,181 +577,270 @@ let talkCollector = null;
 
 // Handle interactions
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
+  if (!interaction.isCommand()) return;
+  const { commandName } = interaction;
 
-    const { commandName } = interaction;
+  switch (commandName) {
+    case 'talk':
+      await interaction.reply('Talking mode is active. Type messages to chat or use `/exit` to stop.');
 
-    switch (commandName) {
-        case 'talk':
-            await interaction.reply('Talking mode is active. Type messages to chat or use `/exit` to stop.');
+      talkCollector = await interaction.channel.createMessageCollector({ filter: m => m.author.id === interaction.user.id });
 
-            // Create a new message collector for this interaction
-            talkCollector = interaction.channel.createMessageCollector({ filter: m => m.author.id === interaction.user.id });
+      talkCollector.on('collect', async m => {
 
-            talkCollector.on('collect', async m => {
-                console.log(`Message collected: ${m.content}`); // Debug: Show collected message
+        if (m.content.toLowerCase() === '!exittalk') {
+          await interaction.channel.send('Exiting talk mode.');
+          talkCollector.stop();
+        } else {
+          const talkContext = serverMessages[interaction.guild.id] || [];
+          talkContext.push({ role: 'user', content: m.content });
+          const chatCompletion = await getGroqChatCompletion(talkContext);
+          talkContext.push({ role: 'assistant', content: chatCompletion });
 
-                if (m.content.toLowerCase() === '!exittalk') {
-                    await interaction.channel.send('Exiting talk mode.');
-                    talkCollector.stop(); // Stop the collector
-                } else {
-                    // Handle messages collected
-                    const talkContext = serverMessages[interaction.guild.id] || [];
-                    talkContext.push({ role: 'user', content: m.content });
-                    const chatCompletion = await getGroqChatCompletion(talkContext);
-                    talkContext.push({ role: 'assistant', content: chatCompletion });
+          const responseParts = splitMessage(chatCompletion);
+          await interaction.reply(splitsummary[0]);
+          for (let i = 1; i < splitsummary.length; i++) {
+            await interaction.channel.send(splitsummary[i]);
+          }
 
-                    const responseParts = splitMessage(chatCompletion);
-                    for (const part of responseParts) {
-                        await interaction.channel.send(part);
-                    }
+          serverMessages[interaction.guild.id] = talkContext;
+        }
+      });
 
-                    // Update the server messages
-                    serverMessages[interaction.guild.id] = talkContext;
-                }
-            });
+      talkCollector.on('end', (collected, reason) => {
+        console.log(`Collector stopped due to: ${reason}`);
+      });
 
-            talkCollector.on('end', (collected, reason) => {
-                console.log(`Collector stopped due to: ${reason}`);
-            });
+      break;
 
-            break;
 
-        case 'exit':
-            await interaction.reply('Exiting talk mode.');
+    case 'exit':
+      await interaction.reply('Exiting talk mode.');
+      if (talkCollector) {
+        talkCollector.stop();
+        talkCollector = null;
+      }
 
-            if (talkCollector) {
-                talkCollector.stop(); // Ensure collector is stopped if it's active
-                talkCollector = null; // Clear the reference
-            }
+      break;
 
-            break;
-case 'read':
-    const count = interaction.options.getInteger('count');
-    const channel = interaction.channel;
-    const messages = await channel.messages.fetch({ limit: count });
-    const messageContents = messages.map(msg => msg.content).join('\n');
-    const summary = await getGroqChatCompletion([{ role: 'user', content: messageContents }]);
-    const splitsummary = splitMessage(summary);
 
-    await interaction.reply(splitsummary[0]);
+       case 'setup':
+        const inputChannelId = interaction.options.getString('channel_id');
+        const setupChannel = interaction.guild.channels.cache.get(inputChannelId);
 
-    for (let i = 1; i < splitsummary.length; i++) {
+        if (!setupChannel) {
+            return await interaction.reply('Please provide a valid channel ID.');
+        }
+
+        if (setupChannel.type !== ChannelType.GuildText) {
+            return await interaction.reply('The provided channel ID does not correspond to a text channel.');
+        }
+
+        // Check if the user has the required permissions
+        if (!interaction.member.permissions.has('BAN_MEMBERS') && !interaction.member.permissions.has('ADMINISTRATOR')) {
+            return await interaction.reply('You do not have permission to use this command.');
+        }
+
+        // Store the channel ID in the setup variable
+        setup[interaction.guild.id] = {
+            channelId: setupChannel.id
+        };
+
+        fs.writeFileSync(setupFilePath, JSON.stringify(setup, null, 2), 'utf8');
+
+        await interaction.reply(`Channel ${setupChannel.name} has been set up for clock-in and clock-out logs.`);
+        break;
+
+    case 'clockin':
+        // Fetch the channel ID from the setup variable
+        const setupConfig = setup[interaction.guild.id];
+        if (!setupConfig || !setupConfig.channelId) {
+            return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
+        }
+
+        const clockInChannel = interaction.guild.channels.cache.get(setupConfig.channelId);
+        if (!clockInChannel || clockInChannel.type !== ChannelType.GuildText) {
+            return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
+        }
+
+        const clockInTime = new Date().toISOString();
+        const memberName = interaction.member.user.tag;
+
+        // Log the clock-in time
+        const logData = {
+            userId: interaction.member.id,
+            userName: memberName,
+            time: clockInTime
+        };
+
+        let clockLogs = [];
+        if (fs.existsSync(clockLogsFilePath)) {
+            clockLogs = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
+        }
+
+        clockLogs.push({ event: 'clockin', ...logData });
+        fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogs, null, 2), 'utf8');
+
+        await clockInChannel.send(`${memberName} has clocked in at ${clockInTime}.`);
+        await interaction.reply(`Clock-in recorded at ${clockInTime}.`);
+        break;
+
+    case 'clockout':
+        // Fetch the channel ID from the setup variable
+        const clockOutConfig = setup[interaction.guild.id];
+        if (!clockOutConfig || !clockOutConfig.channelId) {
+            return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
+        }
+
+        const clockOutChannel = interaction.guild.channels.cache.get(clockOutConfig.channelId);
+        if (!clockOutChannel || clockOutChannel.type !== ChannelType.GuildText) {
+            return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
+        }
+
+        const clockOutTime = new Date().toISOString();
+        const memberNameClockOut = interaction.member.user.tag;
+
+        // Log the clock-out time
+        const logOutData = {
+            userId: interaction.member.id,
+            userName: memberNameClockOut,
+            time: clockOutTime
+        };
+
+        let clockLogsOut = [];
+        if (fs.existsSync(clockLogsFilePath)) {
+            clockLogsOut = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
+        }
+
+        clockLogsOut.push({ event: 'clockout', ...logOutData });
+        fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogsOut, null, 2), 'utf8');
+
+        await clockOutChannel.send(`${memberNameClockOut} has clocked out at ${clockOutTime}.`);
+        await interaction.reply(`Clock-out recorded at ${clockOutTime}.`);
+        break;
+
+    case 'read':
+      const count = interaction.options.getInteger('count');
+      const messages = await interaction.channel.messages.fetch({ limit: count });
+      const messageContents = messages.map(msg => msg.content).join('\n');
+      const summary = await getGroqChatCompletion([{ role: 'user', content: messageContents }]);
+      const splitsummary = splitMessage(summary);
+
+      await interaction.reply(splitsummary[0]);
+      for (let i = 1; i < splitsummary.length; i++) {
         await interaction.channel.send(splitsummary[i]);
-    }
-    break;
+      }
+      break;
 
-        case 'reboot':
-            const rebootKeyInfoMessage = "Key information before reboot:\n";
-            if (logs[interaction.guild.id] && logs[interaction.guild.id].length > 0) {
-                rebootKeyInfoMessage += logs[interaction.guild.id].map(log => {
-                    const timestamp = log.timestamp || "No timestamp";
-                    const keyInfo = log.keyInfo || "No key information";
-                    return `${timestamp}: ${keyInfo}`;
-                }).join('\n');
-            } else {
-                let rebootKeyInfoMessage = "No key information stored.";
-            }
+    case 'reboot':
+      const rebootKeyInfoMessage = "Key information before reboot:\n";
+      if (logs[interaction.guild.id] && logs[interaction.guild.id].length > 0) {
+        rebootKeyInfoMessage += logs[interaction.guild.id].map(log => {
+          const timestamp = log.timestamp || "No timestamp";
+          const keyInfo = log.keyInfo || "No key information";
+          return `${timestamp}: ${keyInfo}`;
+        }).join('\n');
+      } else {
+        let rebootKeyInfoMessage = "No key information stored.";
+      }
 
-            const rebootConfirmButton = new ButtonBuilder()
-                .setCustomId('confirm_reboot')
-                .setLabel('Confirm Reboot')
-                .setStyle(ButtonStyle.Danger);
+      const rebootConfirmButton = new ButtonBuilder()
+        .setCustomId('confirm_reboot')
+        .setLabel('Confirm Reboot')
+        .setStyle(ButtonStyle.Danger);
 
-            const rebootCancelButton = new ButtonBuilder()
-                .setCustomId('cancel_reboot')
-                .setLabel('Cancel')
-                .setStyle(ButtonStyle.Secondary);
+      const rebootCancelButton = new ButtonBuilder()
+        .setCustomId('cancel_reboot')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary);
 
-            const rebootRow = new ActionRowBuilder().addComponents(
-                rebootConfirmButton,
-                rebootCancelButton
-            );
+      const rebootRow = new ActionRowBuilder().addComponents(
+        rebootConfirmButton,
+        rebootCancelButton
+      );
 
-            await interaction.reply({
-                content: rebootKeyInfoMessage,
-                components: [rebootRow]
-            });
+      await interaction.reply({
+        content: rebootKeyInfoMessage,
+        components: [rebootRow]
+      });
 
-            const filter = i => i.customId === 'confirm_reboot' || i.customId === 'cancel_reboot';
-            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
+      const filter = i => i.customId === 'confirm_reboot' || i.customId === 'cancel_reboot';
+      const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
 
-            collector.on('collect', async i => {
-                if (i.customId === 'confirm_reboot') {
-                    await i.update({ content: 'Bot is rebooting...', components: [] });
-                    setTimeout(() => process.exit(), 1000);
-                } else if (i.customId === 'cancel_reboot') {
-                    await i.update({ content: 'Reboot cancelled.', components: [] });
-                }
-            });
+      collector.on('collect', async i => {
+        if (i.customId === 'confirm_reboot') {
+          await i.update({ content: 'Bot is rebooting...', components: [] });
+          setTimeout(() => process.exit(), 1000);
+        } else if (i.customId === 'cancel_reboot') {
+          await i.update({ content: 'Reboot cancelled.', components: [] });
+        }
+      });
 
-            collector.on('end', collected => {
-                if (collected.size === 0) {
-                    interaction.followUp('Reboot confirmation timed out.');
-                }
-            });
-            break;
+      collector.on('end', collected => {
+        if (collected.size === 0) {
+          interaction.followUp('Reboot confirmation timed out.');
+        }
+      });
+      break;
 
-        case 'blacklist':
-            const targetUser = interaction.options.getUser('target');
+    case 'blacklist':
+      const targetUser = interaction.options.getUser('target');
 
-            const blacklistConfirmButton = new ButtonBuilder()
-                .setCustomId('blacklist_yes')
-                .setLabel('Yes')
-                .setStyle(ButtonStyle.Danger);
+      const blacklistConfirmButton = new ButtonBuilder()
+        .setCustomId('blacklist_yes')
+        .setLabel('Yes')
+        .setStyle(ButtonStyle.Danger);
 
-            const blacklistCancelButton = new ButtonBuilder()
-                .setCustomId('blacklist_no')
-                .setLabel('No')
-                .setStyle(ButtonStyle.Success);
+      const blacklistCancelButton = new ButtonBuilder()
+        .setCustomId('blacklist_no')
+        .setLabel('No')
+        .setStyle(ButtonStyle.Success);
 
-            const blacklistRow = new ActionRowBuilder().addComponents(
-                blacklistConfirmButton,
-                blacklistCancelButton
-            );
+      const blacklistRow = new ActionRowBuilder().addComponents(
+        blacklistConfirmButton,
+        blacklistCancelButton
+      );
 
-            await interaction.reply({
-                content: `Do you really want to blacklist ${targetUser.tag}?`,
-                components: [blacklistRow]
-            });
+      await interaction.reply({
+        content: `Do you really want to blacklist ${targetUser.tag}?`,
+        components: [blacklistRow]
+      });
 
-            const blacklistFilter = i => i.customId === 'blacklist_yes' || i.customId === 'blacklist_no';
-            const blacklistCollector = interaction.channel.createMessageComponentCollector({ blacklistFilter, time: 15000 });
+      const blacklistFilter = i => i.customId === 'blacklist_yes' || i.customId === 'blacklist_no';
+      const blacklistCollector = interaction.channel.createMessageComponentCollector({ blacklistFilter, time: 15000 });
 
-            blacklistCollector.on('collect', async i => {
-                if (i.customId === 'blacklist_yes') {
-                    await i.update({ content: `${targetUser.tag} has been blacklisted.`, components: [] });
-                    await interaction.guild.members.ban(targetUser.id);
-                } else if (i.customId === 'blacklist_no') {
-                    await i.update({ content: 'Blacklist action canceled.', components: [] });
-                }
-            });
+      blacklistCollector.on('collect', async i => {
+        if (i.customId === 'blacklist_yes') {
+          await i.update({ content: `${targetUser.tag} has been blacklisted.`, components: [] });
+          await interaction.guild.members.ban(targetUser.id);
+        } else if (i.customId === 'blacklist_no') {
+          await i.update({ content: 'Blacklist action canceled.', components: [] });
+        }
+      });
 
-            blacklistCollector.on('end', collected => {
-                if (collected.size === 0) {
-                    interaction.followUp('Blacklist confirmation timed out.');
-                }
-            });
-            break;
+      blacklistCollector.on('end', collected => {
+        if (collected.size === 0) {
+          interaction.followUp('Blacklist confirmation timed out.');
+        }
+      });
+      break;
 
-      
-case 'ask':
-    const query = interaction.options.getString('query');
-    const answer = await getGroqChatCompletion([{ role: 'user', content: query }]);
-    const processedChunks = splitMessage(answer);
 
-    await interaction.reply(processedChunks[0]);
-    for (let i = 1; i < processedChunks.length; i++) {
+    case 'ask':
+      const query = interaction.options.getString('query');
+      const answer = await getGroqChatCompletion([{ role: 'user', content: query }]);
+      const processedChunks = splitMessage(answer);
+
+      await interaction.reply(processedChunks[0]);
+      for (let i = 1; i < processedChunks.length; i++) {
         await interaction.channel.send(processedChunks[i]);
-    }
-    break;
+      }
+      break;
 
-
-        default:
-            await interaction.reply({ content: 'Unknown command.', ephemeral: true });
-            break;
-    }
+    default:
+      await interaction.reply({ content: 'Unknown command.', ephemeral: true });
+      break;
+  }
 });
 
-// Log in to Discord
 client.login(TOKEN);
