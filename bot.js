@@ -260,40 +260,7 @@ require('dotenv').config();
 //   - (Can also use 'public/src' if you are managing source styles separately.)
 //     Example: 'public/dist/styles.css' or 'public/src/styles.css'.
 
-const app = express();
-const PORT = process.env.PORT || 9442;
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('dist'));
-
-// Express routes for login and dashboard
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-
-  if (username === process.env.USERNAME && password === process.env.PASSWORD) {
-    res.redirect('/dashboard');
-  } else {
-    res.status(401).send('Invalid credentials');
-  }
-});
-
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/dist/index.html'));
-});
-
-app.use('/css', express.static(path.join(__dirname, 'public', 'dist')));
-app.use('/css', express.static(path.join(__dirname, 'public', 'src')));
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/dist/dashboard.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on http:/deka.pylex.xyz:${PORT}. Available URL's are /login.`);
-});
-
-// <=====>
-
+// REMOVED DUE TO ISSUES.
 // <=====[ Initialising Environments ]=====>
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
