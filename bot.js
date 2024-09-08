@@ -240,7 +240,7 @@ client.login(TOKEN);
 
 // <=====[ Imports ]=====>
 const { Client, GatewayIntentBits, ChannelType, REST, Routes, SlashCommandBuilder, Collection, MessageActionRow, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
-
+const setupFilePath = './setup.json';
 const Groq = require('groq-sdk');
 const express = require('express');
 const path = require('path');
@@ -380,18 +380,17 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 // Max messages and log size settings
 const maxMessages = 30; // Number of messages to remember per server
 const maxLogSize = 25 * 1024 * 1024; // 25 MB
-const webhookUrl = "UR_WEBHOOK_URL" || process.env.WEBHOOK_URL
+const webhookUrl = "UR WEBHOOK URL" || process.env.WEBHOOK_URL
 
 const serverMessages = {};
 
 // Load setup.json if it exists
 let setup = {};
-const setupFilePath = path.join(__dirname, 'Setup.json');
-const clockLogsFilePath = path.join(__dirname, 'Clock-Logs.json');
-if (fs.existsSync(setupFilePath)) {
-  setup = JSON.parse(fs.readFileSync(setupFilePath, 'utf8'));
-}
 
+const clockLogsFilePath = './Clock-Logs.json';
+if (fs.existsSync(setupFilePath)) {
+    setup = JSON.parse(fs.readFileSync(setupFilePath, 'utf8'));
+}
 // Load logs.json if it exists
 let logs = {};
 const logsFilePath = path.join(__dirname, 'logs.json');
@@ -624,100 +623,98 @@ client.on('interactionCreate', async interaction => {
       break;
 
 
-       case 'setup':
-        const inputChannelId = interaction.options.getString('channel_id');
-        const setupChannel = interaction.guild.channels.cache.get(inputChannelId);
+           case 'setup':
+                const inputChannelId = interaction.options.getString('channel_id');
+                const setupChannel = interaction.guild.channels.cache.get(inputChannelId);
 
-        if (!setupChannel) {
-            return await interaction.reply('Please provide a valid channel ID.');
-        }
+                if (!setupChannel) {
+                    return await interaction.reply('Please provide a valid channel ID.');
+                }
 
-        if (setupChannel.type !== ChannelType.GuildText) {
-            return await interaction.reply('The provided channel ID does not correspond to a text channel.');
-        }
+                if (setupChannel.type !== ChannelType.GuildText) {
+                    return await interaction.reply('The provided channel ID does not correspond to a text channel.');
+                }
 
-        // Check if the user has the required permissions
-        if (!interaction.member.permissions.has('BAN_MEMBERS') && !interaction.member.permissions.has('ADMINISTRATOR')) {
-            return await interaction.reply('You do not have permission to use this command.');
-        }
+                // Check if the user has the required permissions
+                if (!interaction.member.permissions.has('BAN_MEMBERS') && !interaction.member.permissions.has('ADMINISTRATOR')) {
+                    return await interaction.reply('You do not have permission to use this command.');
+                }
 
-        // Store the channel ID in the setup variable
-        setup[interaction.guild.id] = {
-            channelId: setupChannel.id
-        };
+                // Store the channel ID in the setup variable
+                setup[interaction.guild.id] = {
+                    channelId: setupChannel.id
+                };
 
-        fs.writeFileSync(setupFilePath, JSON.stringify(setup, null, 2), 'utf8');
+                fs.writeFileSync(setupFilePath, JSON.stringify(setup, null, 2), 'utf8');
 
-        await interaction.reply(`Channel ${setupChannel.name} has been set up for clock-in and clock-out logs.`);
-        break;
+                await interaction.reply(`Channel ${setupChannel.name} has been set up for clock-in and clock-out logs.`);
+                break;
 
-    case 'clockin':
-        // Fetch the channel ID from the setup variable
-        const setupConfig = setup[interaction.guild.id];
-        if (!setupConfig || !setupConfig.channelId) {
-            return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
-        }
+            case 'clockin':
+                const clockInConfig = setup[interaction.guild.id];
+                if (!clockInConfig || !clockInConfig.channelId) {
+                    return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
+                }
 
-        const clockInChannel = interaction.guild.channels.cache.get(setupConfig.channelId);
-        if (!clockInChannel || clockInChannel.type !== ChannelType.GuildText) {
-            return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
-        }
+                const clockInChannel = interaction.guild.channels.cache.get(clockInConfig.channelId);
+                if (!clockInChannel || clockInChannel.type !== ChannelType.GuildText) {
+                    return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
+                }
 
-        const clockInTime = new Date().toISOString();
-        const memberName = interaction.member.user.tag;
+                const clockInTimestamp = Math.floor(Date.now() / 1000); // Current Unix timestamp
+                const memberName = interaction.member.user.tag;
 
-        // Log the clock-in time
-        const logData = {
-            userId: interaction.member.id,
-            userName: memberName,
-            time: clockInTime
-        };
+                // Log the clock-in time
+                const logData = {
+                    userId: interaction.member.id,
+                    userName: memberName,
+                    timestamp: clockInTimestamp
+                };
 
-        let clockLogs = [];
-        if (fs.existsSync(clockLogsFilePath)) {
-            clockLogs = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
-        }
+                let clockLogs = [];
+                if (fs.existsSync(clockLogsFilePath)) {
+                    clockLogs = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
+                }
 
-        clockLogs.push({ event: 'clockin', ...logData });
-        fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogs, null, 2), 'utf8');
+                clockLogs.push({ event: 'clockin', ...logData });
+                fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogs, null, 2), 'utf8');
 
-        await clockInChannel.send(`${memberName} has clocked in at ${clockInTime}.`);
-        await interaction.reply(`Clock-in recorded at ${clockInTime}.`);
-        break;
+                await clockInChannel.send(`${memberName} has clocked in at <t:${clockInTimestamp}:F>.`);
+                await interaction.reply(`Clock-in recorded at <t:${clockInTimestamp}:F>.`);
+                break;
 
-    case 'clockout':
-        // Fetch the channel ID from the setup variable
-        const clockOutConfig = setup[interaction.guild.id];
-        if (!clockOutConfig || !clockOutConfig.channelId) {
-            return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
-        }
+            case 'clockout':
+                const clockOutConfig = setup[interaction.guild.id];
+                if (!clockOutConfig || !clockOutConfig.channelId) {
+                    return await interaction.reply('No channel has been set up for clock-in and clock-out logs. Please use the /setup command first.');
+                }
 
-        const clockOutChannel = interaction.guild.channels.cache.get(clockOutConfig.channelId);
-        if (!clockOutChannel || clockOutChannel.type !== ChannelType.GuildText) {
-            return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
-        }
+                const clockOutChannel = interaction.guild.channels.cache.get(clockOutConfig.channelId);
+                if (!clockOutChannel || clockOutChannel.type !== ChannelType.GuildText) {
+                    return await interaction.reply('The setup channel is not valid. Please use the /setup command to configure a valid channel.');
+                }
 
-        const clockOutTime = new Date().toISOString();
-        const memberNameClockOut = interaction.member.user.tag;
+                const clockOutTimestamp = Math.floor(Date.now() / 1000); // Current Unix timestamp
+                const memberNameClockOut = interaction.member.user.tag;
 
-        // Log the clock-out time
-        const logOutData = {
-            userId: interaction.member.id,
-            userName: memberNameClockOut,
-            time: clockOutTime
-        };
+                // Log the clock-out time
+                const logOutData = {
+                    userId: interaction.member.id,
+                    userName: memberNameClockOut,
+                    timestamp: clockOutTimestamp
+                };
 
-        let clockLogsOut = [];
-        if (fs.existsSync(clockLogsFilePath)) {
-            clockLogsOut = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
-        }
+                let clockLogsOut = [];
+                if (fs.existsSync(clockLogsFilePath)) {
+                    clockLogsOut = JSON.parse(fs.readFileSync(clockLogsFilePath, 'utf8'));
+                }
 
-        clockLogsOut.push({ event: 'clockout', ...logOutData });
-        fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogsOut, null, 2), 'utf8');
+                clockLogsOut.push({ event: 'clockout', ...logOutData });
+                fs.writeFileSync(clockLogsFilePath, JSON.stringify(clockLogsOut, null, 2), 'utf8');
 
-        await clockOutChannel.send(`${memberNameClockOut} has clocked out at ${clockOutTime}.`);
-        await interaction.reply(`Clock-out recorded at ${clockOutTime}.`);
-        break;
+                await clockOutChannel.send(`${memberNameClockOut} has clocked out at <t:${clockOutTimestamp}:F>.`);
+                await interaction.reply(`Clock-out recorded at <t:${clockOutTimestamp}:F>.`);
+                break;
 
     case 'read':
       const count = interaction.options.getInteger('count');
