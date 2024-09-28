@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "discord.js": "*",
+    "dotenv": "*",
+    "https": "*",
+    "groq-sdk": "*",
+    "body-parser": "*",
+    "express": "*",
+    "eventsource": "*"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
