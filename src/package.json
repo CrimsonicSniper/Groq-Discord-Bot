@@ -15,10 +15,9 @@
     "discord-gamecord": "^4.4.1",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
-    "eventsource": "^2.0.2",
     "fs": "^0.0.1-security",
-    "groq-sdk": "^0.7.0",
     "mongoose": "^6.0.12",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "groq-sdk": "*"
   }
 }
