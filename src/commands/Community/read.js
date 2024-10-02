@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js')
-const { getGroqChatCompletion } = require('./tools/getGroqChatCompletion')
+const { getGroqChatCompletionContinous} = require('./tools/getGroqChatCompletion')
 const { splitMessage } = require('./tools/splitMessages')
+const {sendEmbed} = require('./tools/embedbuilder')
 module.exports = {
     data:  new SlashCommandBuilder()
     .setName('read')
@@ -15,12 +16,13 @@ module.exports = {
     async execute(interaction) {
         const count = interaction.options.getInteger('count');
         const messages = await interaction.channel.messages.fetch({ limit: count });
-        const messageContents = "Summarize these messages form a discord chat & make it medium sized (3000 letters according to size, you can also type more than 3000 letters if the input is big.): " + messages.map(msg => msg.content).join('\n');
-        const summary = await getGroqChatCompletion([{ role: 'user', content: messageContents }]);
-        const splitsummary = splitMessage(summary);
-        await interaction.reply(splitsummary[0]);
-        for (let i = 1; i < splitsummary.length; i++) {
-          await interaction.channel.send(splitsummary[i]);
+        const messageContents = "These messages are from a discord chat: Summarize and tell the context of the chat: " + messages.map(msg => msg.content).join('\n');
+        const summary = await getGroqChatCompletionContinous([{ role: 'user', content: messageContents }]);
+        const processedChunks = splitMessage(summary);
+  
+        await sendEmbed(interaction, { title: `/read, Response: 1`, description: processedChunks[0]});
+        for (let i = 1; i < processedChunks.length; i++) {
+          await sendEmbed(interaction, { title: `/read, Response: ${i + 1}`, description: processedChunks[i], noReply: true});
         }
     }
 }
