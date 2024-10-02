@@ -18,6 +18,8 @@ Available slash commands:
 | test.js      |
 '--------------'
 ```
-We also have a testing server! Check it out- https://discord.gg/Msh6Pb4eR6
+We also have a testing server! Check it out- https://discord.gg/Msh6Pb4eR6,
+
 Github repo's used: https://github.com/Kkkermit/DiscordBotV14-template, https://github.com/hihumanzone/bot-template/blob/main/tools/sendingTools.js
+Apexify.js coming soon!
 
